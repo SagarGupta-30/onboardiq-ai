@@ -35,4 +35,9 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Root Route
+app.get('/', (req, res) => {
+  res.send('OnboardIQ AI Backend Running Successfully 🚀');
+});
+
 export default app;
