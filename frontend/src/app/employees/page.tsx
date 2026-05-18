@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { apiFetch } from '@/utils/api';
 import { useRouter } from 'next/navigation';
 import { 
   Users, 
@@ -132,14 +133,26 @@ export default function EmployeesPage() {
   }, [token, loading, router]);
 
   useEffect(() => {
+    const fetchEmployees = async () => {
+      try {
+        setFetching(true);
+        const data = await apiFetch('/api/employees');
+        setEmployees(data);
+      } catch (err) {
+        console.warn('[Employees API Fallback] Failed connecting to backend API, falling back to local mocks:', err);
+        setEmployees(mockEmployees);
+      } finally {
+        setFetching(false);
+      }
+    };
+
     if (token) {
-      setEmployees(mockEmployees);
-      setFetching(false);
+      fetchEmployees();
     }
   }, [token]);
 
   // Recalculate scores helper
-  const updateLocalTaskStatus = (empId: string, taskId: string, newStatus: 'PENDING' | 'COMPLETED') => {
+  const updateLocalTaskStatus = async (empId: string, taskId: string, newStatus: 'PENDING' | 'COMPLETED') => {
     const updatedEmployees = employees.map(emp => {
       if (emp.id !== empId) return emp;
       
@@ -172,18 +185,28 @@ export default function EmployeesPage() {
     setEmployees(updatedEmployees);
     const nextSelected = updatedEmployees.find(e => e.id === empId);
     setSelectedEmp(nextSelected);
+
+    try {
+      await apiFetch(`/api/employees/tasks/${taskId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ status: newStatus })
+      });
+    } catch (err) {
+      console.warn('[Employees Task API Fallback] Local state updated, backend sync skipped:', err);
+    }
   };
 
   // Add employee handler
-  const handleAddEmployee = (e: React.FormEvent) => {
+  const handleAddEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!firstName || !lastName || !email || !startDate) return;
 
     let baseRisk = 25;
     if (department === 'Engineering') baseRisk = 65;
 
-    const newEmp = {
-      id: `emp-${Math.random().toString(36).substr(2, 9)}`,
+    const tempId = `emp-${Math.random().toString(36).substr(2, 9)}`;
+    const newEmpPlaceholder = {
+      id: tempId,
       firstName,
       lastName,
       email,
@@ -200,9 +223,26 @@ export default function EmployeesPage() {
       ]
     };
 
-    setEmployees([newEmp, ...employees]);
+    setEmployees([newEmpPlaceholder, ...employees]);
     setShowAddModal(false);
-    
+
+    try {
+      const savedEmp = await apiFetch('/api/employees', {
+        method: 'POST',
+        body: JSON.stringify({
+          firstName,
+          lastName,
+          email,
+          department,
+          role,
+          startDate
+        })
+      });
+      setEmployees(prev => prev.map(emp => emp.id === tempId ? savedEmp : emp));
+    } catch (err) {
+      console.warn('[Employees Provision API Fallback] Local placeholder kept, backend sync skipped:', err);
+    }
+
     // Reset Form
     setFirstName('');
     setLastName('');

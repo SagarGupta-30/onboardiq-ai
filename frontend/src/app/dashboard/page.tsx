@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { apiFetch } from '@/utils/api';
 import { 
   ShieldCheck, 
   ShieldAlert, 
@@ -73,6 +74,28 @@ export default function Dashboard() {
     // Highly realistic fetching from our backend server with clean in-memory mocks as fallback
     const fetchData = async () => {
       try {
+        setFetching(true);
+        // Attempt to fetch from real Express backend API
+        const realStats = await apiFetch('/api/security/stats');
+        const realLogs = await apiFetch('/api/reports/logs');
+        
+        // Map logs slightly to match dashboard layout requirements
+        const mappedLogs = realLogs.map((log: any) => {
+          const hoursAgo = Math.max(1, Math.round((new Date().getTime() - new Date(log.timestamp || log.time).getTime()) / (1000 * 60 * 60)));
+          return {
+            id: log.id,
+            userName: log.userName,
+            action: log.action,
+            details: log.details,
+            severity: log.severity,
+            time: hoursAgo > 24 ? `${Math.round(hoursAgo / 24)} days ago` : `${hoursAgo} hrs ago`
+          };
+        }).slice(0, 5);
+
+        setStats(realStats);
+        setActivities(mappedLogs);
+      } catch (err) {
+        console.warn('[Dashboard API Fallback] Failed connecting to backend API, falling back to local mocks:', err);
         const mockStats = {
           organizationOverview: {
             totalEmployees: 4,
@@ -104,8 +127,6 @@ export default function Dashboard() {
 
         setStats(mockStats);
         setActivities(mockLogs);
-      } catch (err) {
-        console.error(err);
       } finally {
         setFetching(false);
       }

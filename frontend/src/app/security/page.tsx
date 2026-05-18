@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { apiFetch } from '@/utils/api';
 import { useRouter } from 'next/navigation';
 import { 
   ShieldCheck, 
@@ -35,7 +36,27 @@ export default function SecurityCenter() {
     }
   }, [token, loading, router]);
 
-  const triggerAuditScan = () => {
+  // Load actual compliance stats from backend
+  const fetchSecurityStats = async () => {
+    try {
+      const stats = await apiFetch('/api/security/stats');
+      if (stats?.frameworkCompliance) {
+        setSoc2(stats.frameworkCompliance.soc2 || 75);
+        setIso(stats.frameworkCompliance.iso27001 || 100);
+        setGdpr(stats.frameworkCompliance.gdpr || 40);
+      }
+    } catch (err) {
+      console.warn('[Security Center API Fallback] Using local mockup framework scores:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (token) {
+      fetchSecurityStats();
+    }
+  }, [token]);
+
+  const triggerAuditScan = async () => {
     setIsScanning(true);
     setScanMessage('Evaluating active directory and workspace identities...');
     setScanResults([]);
@@ -46,7 +67,7 @@ export default function SecurityCenter() {
       setScanResults(prev => [...prev, '✓ 3 Active corporate laptops provisioned correctly in MDM']);
       
       // Step 2: Check training
-      setTimeout(() => {
+      setTimeout(async () => {
         setScanMessage('Analyzing employee compliance certifications...');
         setScanResults(prev => [...prev, '✓ Sophia Chen background Screening check successfully passed']);
         setScanResults(prev => [...prev, '⚠️ 2 New Hires training courses over-due by 3 days']);
@@ -56,13 +77,29 @@ export default function SecurityCenter() {
           setScanMessage('Validating least-privilege AWS IAM policies...');
           setScanResults(prev => [...prev, '❌ David Kim missing critical MFA Policy Consent on DevOps console']);
 
-          // Step 4: Finalize
-          setTimeout(() => {
-            setIsScanning(false);
-            setScanMessage('');
-            // Bump scores representing standard remediation updates
-            setSoc2(85);
-            setGdpr(55);
+          // Step 4: Finalize & Trigger Backend Rekeying
+          setTimeout(async () => {
+            try {
+              // Trigger real backend compliance recalculations
+              await apiFetch('/api/security/audits/trigger', {
+                method: 'POST',
+                body: JSON.stringify({ category: 'SOC2' })
+              });
+              await apiFetch('/api/security/audits/trigger', {
+                method: 'POST',
+                body: JSON.stringify({ category: 'GDPR' })
+              });
+              // Refresh framework scores from backend database
+              await fetchSecurityStats();
+            } catch (err) {
+              console.warn('[Audit Scan Sync Warning] Could not sync scan results with backend db:', err);
+              // Fallback bump scores representing standard local sandbox updates
+              setSoc2(85);
+              setGdpr(55);
+            } finally {
+              setIsScanning(false);
+              setScanMessage('');
+            }
           }, 1500);
         }, 1200);
       }, 1200);

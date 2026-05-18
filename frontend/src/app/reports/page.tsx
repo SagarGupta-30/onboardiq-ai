@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { apiFetch } from '@/utils/api';
 import { useRouter } from 'next/navigation';
 import { 
   FileText, 
@@ -42,30 +43,70 @@ export default function ReportsPage() {
     }
   }, [token, loading, router]);
 
+  const fetchLogs = async () => {
+    try {
+      setFetching(true);
+      const data = await apiFetch('/api/reports/logs');
+      setLogs(data);
+    } catch (err) {
+      console.warn('[Reports API Fallback] Failed connecting to backend logs API, falling back to local mocks:', err);
+      setLogs(mockLogs);
+    } finally {
+      setFetching(false);
+    }
+  };
+
   useEffect(() => {
     if (token) {
-      setLogs(mockLogs);
-      setFetching(false);
+      fetchLogs();
     }
   }, [token]);
 
-  // Export report simulator
-  const handleExport = () => {
+  // Export report actual implementation
+  const handleExport = async () => {
     setExporting(true);
     setExportMessage('Consolidating compliance indices...');
     
-    setTimeout(() => {
+    try {
+      // Fetch export JSON dataset from Express backend
+      const data = await apiFetch('/api/reports/export');
+      
       setExportMessage('Generating spreadsheet rows...');
       
+      // Convert JSON records into raw CSV string
+      const headers = ['id', 'fullName', 'email', 'department', 'role', 'status', 'complianceScore', 'riskScore', 'startDate', 'pendingComplianceTasks'];
+      const csvContent = [
+        headers.join(','),
+        ...data.map((row: any) => 
+          headers.map(header => `"${(row[header] || '').toString().replace(/"/g, '""')}"`).join(',')
+        )
+      ].join('\n');
+
+      // Create a hidden browser download anchor element and trigger download
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `OnboardIQ_Compliance_Report_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      setExportMessage('Done! File downloaded successfully.');
+    } catch (err) {
+      console.warn('[Export API Fallback] Backend export unavailable, simulating download:', err);
+      setExportMessage('Simulating spreadsheet generation...');
+      
       setTimeout(() => {
-        setExportMessage('Done! File downloaded successfully.');
-        
-        setTimeout(() => {
-          setExporting(false);
-          setExportMessage('');
-        }, 1200);
+        setExportMessage('Done! Simulated file downloaded successfully.');
       }, 1000);
-    }, 1000);
+    } finally {
+      setTimeout(() => {
+        setExporting(false);
+        setExportMessage('');
+      }, 1500);
+    }
   };
 
   const getSeverityStyles = (severity: string) => {

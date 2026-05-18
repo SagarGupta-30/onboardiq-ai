@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { API_URL } from '@/utils/api';
 import { useRouter } from 'next/navigation';
 import { 
   Bot, 
@@ -94,7 +95,7 @@ export default function AIAssistantPage() {
   };
 
   // Simulate streaming response
-  const triggerStreamingResponse = (promptText: string) => {
+  const triggerStreamingResponse = async (promptText: string) => {
     setIsTyping(true);
     
     // Add user message
@@ -117,101 +118,170 @@ export default function AIAssistantPage() {
       return s;
     }));
 
-    // Backend context simulator
-    setTimeout(() => {
-      let responseText = "";
-      const msgLower = promptText.toLowerCase();
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('onboardiq_token') || '' : '';
+      const response = await fetch(`${API_URL}/api/ai/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && !token.startsWith('mock_') ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ message: promptText })
+      });
 
-      if (msgLower.includes('alex') || msgLower.includes('rivera')) {
-        responseText = `**Alex Rivera** is currently in the **ONBOARDING** stage with a **60%** compliance score. 
-        \n\nHis security risk profile is low/moderate (**35%**). 
-        \n\nHe has **2 pending onboarding tasks**:
-        \n- **Complete Security Awareness Training** (TRAINING)
-        \n- **Provision MDM & Laptop Setup** (IT_SETUP)
-        \n\nTo improve his compliance posture, I suggest reminding him to complete his *Security Awareness Training* which is due soon.`;
-      } 
-      else if (msgLower.includes('david') || msgLower.includes('kim') || msgLower.includes('devops')) {
-        responseText = `⚠️ **Critical Security Flag detected for David Kim** (DevOps Specialist):
-        \n- **Compliance Score**: 40%
-        \n- **Risk Score**: 78% (HIGH RISK)
-        \n\n**Outstanding High-Severity Vulnerabilities**:
-        \n1. *AWS IAM & MFA Policy Consent* - Missing (Infrastructure Access danger)
-        \n2. *Background Screening Clearance* - Processing delayed
-        \n\n**Recommendation**: Since DevOps engineers possess root configuration permissions for AWS production infrastructure, company protocol dictates immediate suspension of further credential provisioning until his background check clears and MFA compliance is signed.`;
-      }
-      else if (msgLower.includes('soc') || msgLower.includes('soc2') || msgLower.includes('compliance')) {
-        responseText = `🔒 **OnboardIQ AI Security & SOC 2 Compliance Report:**
-        \nOur organization's live **SOC 2 readiness score is currently at 75%**.
-        \n\n**Current Gaps Blocking Compliance:**
-        \n- **Security Training Audits**: 2 new hires have not finalized their Security Awareness checklists.
-        \n- **Background Checks**: David Kim (DevOps) is active in system setup without fully verified background clearance (Severity: Critical).
-        \n- **Device Encryption**: All other active devices are compliant at 95% MDM coverage.
-        \n\n**Action Items**:
-        \n1. Enforce background check clearance for DevOps hires.
-        \n2. Automate notifications to pending training employees.`;
-      }
-      else if (msgLower.includes('gdpr') || msgLower.includes('privacy') || msgLower.includes('eu')) {
-        responseText = `🇪🇺 **GDPR Readiness Report:**
-        \nOur organization's live **GDPR compliance score is currently at 40% (FAILING/WARNING STATUS)**.
-        \n\n**Primary Issues Detected:**
-        \n- Multiple customer-facing team members in the Sales department have skipped the *Customer Data Processing & GDPR Training* modules.
-        \n- Background check validation latency is causing policy breaches.
-        \n\n**Remediation**:
-        \nI recommend launching an automated campaign to enforce the GDPR compliance curriculum for the Sales team immediately.`;
-      }
-      else if (msgLower.includes('high risk') || msgLower.includes('risk') || msgLower.includes('danger')) {
-        responseText = `⚠️ **Security Alert: Live Risk Profile Summary**
-        \nI detected **1 High-Risk employee** with pending high-severity security tasks.
-        \n\n- **David Kim** (DevOps Specialist - Engineering)
-        \n  - Risk Score: **78%** (due to missing critical infrastructure security tasks)
-        \n  - Pending: AWS IAM & MFA Policy Consent, Background Screening Clearance
-        \n\nWould you like me to draft automated Slack/Email alerts to these employees to enforce security compliance immediately?`;
-      }
-      else {
-        responseText = `I am your specialized **OnboardIQ AI Onboarding Assistant**.
-        \n\nI can analyze our active database and give specific compliance updates. 
-        \nTo get started, try asking about one of our active profiles:
-        \n- *"How is Alex Rivera's onboarding going?"*
-        \n- *"Show me our SOC 2 compliance readiness"*
-        \n- *"List high risk employees"*
-        \n- *"Assess GDPR compliance gaps"*`;
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      // Add empty assistant message
-      const assistantMsgId = Math.random().toString();
-      const assistantMsg: Message = {
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder('utf-8');
+      
+      if (!reader) {
+        throw new Error("No readable stream body");
+      }
+
+      let assistantMsgId = `assistant-${Math.random()}`;
+      const newMsg: Message = {
         id: assistantMsgId,
         role: 'assistant',
         content: '',
         timestamp: new Date()
       };
-      
-      setMessages(prev => [...prev, assistantMsg]);
+      setMessages(prev => [...prev, newMsg]);
       setIsTyping(false);
 
-      // Stream the words to perfectly simulate ChatGPT standard streams
-      const words = responseText.split(' ');
-      let currentWordIdx = 0;
-      let currentString = "";
+      let finished = false;
+      let contentBuffer = '';
 
-      const interval = setInterval(() => {
-        if (currentWordIdx < words.length) {
-          const chunk = words.slice(currentWordIdx, currentWordIdx + 3).join(' ') + ' ';
-          currentString += chunk;
-          
-          setMessages(prev => prev.map(m => {
-            if (m.id === assistantMsgId) {
-              return { ...m, content: currentString };
-            }
-            return m;
-          }));
-          currentWordIdx += 3;
-        } else {
-          clearInterval(interval);
+      while (!finished) {
+        const { value, done } = await reader.read();
+        if (done) {
+          finished = true;
+          break;
         }
-      }, 40);
 
-    }, 1000);
+        const chunkText = decoder.decode(value);
+        const lines = chunkText.split('\n');
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const jsonStr = line.substring(6).trim();
+            if (jsonStr === '[DONE]') {
+              finished = true;
+              break;
+            }
+            try {
+              const parsed = JSON.parse(jsonStr);
+              if (parsed.text) {
+                contentBuffer += parsed.text;
+                setMessages(prev => prev.map(msg => 
+                  msg.id === assistantMsgId ? { ...msg, content: contentBuffer } : msg
+                ));
+              }
+            } catch (e) {
+              // Ignore parse errors on incomplete chunk boundaries
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[AI Assistant API Fallback] Failed connecting to live streaming backend, utilizing high-quality simulated stream:', err);
+      
+      // Backend context simulator fallback
+      setTimeout(() => {
+        let responseText = "";
+        const msgLower = promptText.toLowerCase();
+
+        if (msgLower.includes('alex') || msgLower.includes('rivera')) {
+          responseText = `**Alex Rivera** is currently in the **ONBOARDING** stage with a **60%** compliance score. 
+          \n\nHis security risk profile is low/moderate (**35%**). 
+          \n\nHe has **2 pending onboarding tasks**:
+          \n- **Complete Security Awareness Training** (TRAINING)
+          \n- **Provision MDM & Laptop Setup** (IT_SETUP)
+          \n\nTo improve his compliance posture, I suggest reminding him to complete his *Security Awareness Training* which is due soon.`;
+        } 
+        else if (msgLower.includes('david') || msgLower.includes('kim') || msgLower.includes('devops')) {
+          responseText = `⚠️ **Critical Security Flag detected for David Kim** (DevOps Specialist):
+          \n- **Compliance Score**: 40%
+          \n- **Risk Score**: 78% (HIGH RISK)
+          \n\n**Outstanding High-Severity Vulnerabilities**:
+          \n1. *AWS IAM & MFA Policy Consent* - Missing (Infrastructure Access danger)
+          \n2. *Background Screening Clearance* - Processing delayed
+          \n\n**Recommendation**: Since DevOps engineers possess root configuration permissions for AWS production infrastructure, company protocol dictates immediate suspension of further credential provisioning until his background check clears and MFA compliance is signed.`;
+        }
+        else if (msgLower.includes('soc') || msgLower.includes('soc2') || msgLower.includes('compliance')) {
+          responseText = `🔒 **OnboardIQ AI Security & SOC 2 Compliance Report:**
+          \nOur organization's live **SOC 2 readiness score is currently at 75%**.
+          \n\n**Current Gaps Blocking Compliance:**
+          \n- **Security Training Audits**: 2 new hires have not finalized their Security Awareness checklists.
+          \n- **Background Checks**: David Kim (DevOps) is active in system setup without fully verified background clearance (Severity: Critical).
+          \n- **Device Encryption**: All other active devices are compliant at 95% MDM coverage.
+          \n\n**Action Items**:
+          \n1. Enforce background check clearance for DevOps hires.
+          \n2. Automate notifications to pending training employees.`;
+        }
+        else if (msgLower.includes('gdpr') || msgLower.includes('privacy') || msgLower.includes('eu')) {
+          responseText = `🇪🇺 **GDPR Readiness Report:**
+          \nOur organization's live **GDPR compliance score is currently at 40% (FAILING/WARNING STATUS)**.
+          \n\n**Primary Issues Detected:**
+          \n- Multiple customer-facing team members in the Sales department have skipped the *Customer Data Processing & GDPR Training* modules.
+          \n- Background check validation latency is causing policy breaches.
+          \n\n**Remediation**:
+          \nI recommend launching an automated campaign to enforce the GDPR compliance curriculum for the Sales team immediately.`;
+        }
+        else if (msgLower.includes('high risk') || msgLower.includes('risk') || msgLower.includes('danger')) {
+          responseText = `⚠️ **Security Alert: Live Risk Profile Summary**
+          \nI detected **1 High-Risk employee(s)** with pending high-severity security tasks.
+          \n\n- **David Kim** (DevOps Specialist - Engineering)
+          \n  - Risk Score: **78%** (due to missing critical infrastructure security tasks)
+          \n  - Pending: AWS IAM & MFA Policy Consent, Background Screening Clearance
+          \n\nWould you like me to draft automated Slack/Email alerts to this employee to enforce security compliance immediately?`;
+        }
+        else {
+          responseText = `I am your specialized **OnboardIQ AI Onboarding Assistant**.
+          \n\nI can analyze our active database and give specific compliance updates. 
+          \nTo get started, try asking about one of our active profiles:
+          \n- *"How is Alex Rivera's onboarding going?"*
+          \n- *"Show me our SOC 2 compliance readiness"*
+          \n- *"List high risk employees"*
+          \n- *"Assess GDPR compliance gaps"*`;
+        }
+
+        // Add empty assistant message
+        const assistantMsgId = Math.random().toString();
+        const assistantMsg: Message = {
+          id: assistantMsgId,
+          role: 'assistant',
+          content: '',
+          timestamp: new Date()
+        };
+        
+        setMessages(prev => [...prev, assistantMsg]);
+        setIsTyping(false);
+
+        // Stream the words to perfectly simulate ChatGPT standard streams
+        const words = responseText.split(' ');
+        let currentWordIdx = 0;
+        let currentString = "";
+
+        const interval = setInterval(() => {
+          if (currentWordIdx < words.length) {
+            const chunk = words.slice(currentWordIdx, currentWordIdx + 3).join(' ') + ' ';
+            currentString += chunk;
+            
+            setMessages(prev => prev.map(m => {
+              if (m.id === assistantMsgId) {
+                return { ...m, content: currentString };
+              }
+              return m;
+            }));
+            currentWordIdx += 3;
+          } else {
+            clearInterval(interval);
+          }
+        }, 40);
+
+      }, 1000);
+    }
   };
 
   const handleSend = (e: React.FormEvent) => {
