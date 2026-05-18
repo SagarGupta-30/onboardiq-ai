@@ -1,0 +1,118 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      String   @default("HR") // "ADMIN", "HR", "EMPLOYEE", "SECURITY_OFFICER"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  employees Employee[]
+}
+
+model Employee {
+  id              String           @id @default(uuid())
+  userId          String?
+  user            User?            @relation(fields: [userId], references: [id])
+  firstName       String
+  lastName        String
+  email           String           @unique
+  department      String
+  role            String
+  status          String           @default("ONBOARDING") // "ONBOARDING", "ACTIVE", "INACTIVE"
+  startDate       DateTime
+  riskScore       Int              @default(0) // 0-100
+  complianceScore Int              @default(0) // 0-100
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  tasks           OnboardingTask[]
+}
+
+model OnboardingTask {
+  id          String    @id @default(uuid())
+  employeeId  String
+  employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  title       String
+  description String
+  category    String    @default("DOCUMENT") // "DOCUMENT", "IT_SETUP", "TRAINING", "SECURITY"
+  status      String    @default("PENDING") // "PENDING", "COMPLETED"
+  dueDate     DateTime
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model SecurityAudit {
+  id          String   @id @default(uuid())
+  category    String   // "SOC2", "ISO27001", "GDPR", "INTERNAL"
+  title       String
+  description String
+  status      String   @default("PASSED") // "PASSED", "WARNING", "FAILED"
+  score       Int      @default(100)
+  checkedAt   DateTime @default(now())
+}
+
+model ActivityLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  userName  String
+  action    String
+  details   String
+  severity  String   @default("INFO") // "INFO", "WARNING", "CRITICAL"
+  timestamp DateTime @default(now())
+}
+
+// ----------------------------------------------------
+// New Enterprise Security Compliance Models
+// ----------------------------------------------------
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  userName  String
+  action    String   // e.g. "EMPLOYEE_CREATE", "TASK_COMPLETE", "SCAN_TRIGGER"
+  details   String
+  severity  String   @default("INFO") // "INFO", "WARNING", "CRITICAL"
+  timestamp DateTime @default(now())
+}
+
+model SecurityAlert {
+  id           String    @id @default(uuid())
+  employeeId   String?
+  employeeName String?
+  title        String
+  description  String
+  severity     String    @default("HIGH") // "LOW", "MEDIUM", "HIGH", "CRITICAL"
+  status       String    @default("OPEN") // "OPEN", "RESOLVED"
+  createdAt    DateTime  @default(now())
+  resolvedAt   DateTime?
+}
+
+model ComplianceReport {
+  id          String   @id @default(uuid())
+  framework   String   // "SOC2", "GDPR", "ISO27001"
+  score       Int      @default(0)
+  passedCount Int      @default(0)
+  failedCount Int      @default(0)
+  status      String   @default("WARNING") // "PASSED", "WARNING", "FAILED"
+  generatedAt DateTime @default(now())
+}
+
+model ChatMessage {
+  id        String   @id @default(uuid())
+  userId    String
+  role      String   // "user", "assistant"
+  content   String
+  timestamp DateTime @default(now())
+}
