@@ -39,7 +39,7 @@ router.post('/chat', authenticateToken, async (req: AuthenticatedRequest, res: R
         responseText = `**Alex Rivera** is currently in the **${alex.status}** stage with a **${alex.complianceScore}%** compliance score. 
         \n\nHis security risk profile is low/moderate (**${alex.riskScore}%**). 
         \n\nHe has **${pending.length} pending onboarding tasks**:
-        ${pending.length > 0 ? pending.map(t => `\n- ${t}`).join('') : '\n- All tasks completed successfully!'}
+        ${pending.length > 0 ? pending.map((t: string) => `\n- ${t}`).join('') : '\n- All tasks completed successfully!'}
         \n\nTo improve his compliance posture, I suggest reminding him to complete his *Security Awareness Training* which is due soon.`;
       } else {
         responseText = `I couldn't find an employee named Alex Rivera in the current system.`;

@@ -38,14 +38,16 @@ export class ArmorIQ {
     
     try {
       // Direct commit to our unified db repository layer
-      await db.activityLogs.push({
-        id: `audit-${Math.random().toString(36).substr(2, 9)}`,
-        userId,
-        userName,
-        action,
-        details,
-        severity,
-        timestamp: new Date()
+      await db.activityLogs.create({
+        data: {
+          id: `audit-${Math.random().toString(36).substr(2, 9)}`,
+          userId,
+          userName,
+          action,
+          details,
+          severity,
+          timestamp: new Date()
+        }
       });
     } catch (err) {
       console.error('[ArmorIQ Audit Error] Failed to write event to repository logs:', err);

@@ -169,7 +169,7 @@ router.put('/tasks/:taskId', authenticateToken, async (req: AuthenticatedRequest
     }
 
     const task = await db.tasks.update({
-      where: { id: taskId },
+      where: { id: taskId as string },
       data: {
         status,
         completedAt: status === 'COMPLETED' ? new Date() : null
@@ -219,13 +219,13 @@ router.put('/tasks/:taskId', authenticateToken, async (req: AuthenticatedRequest
 router.delete('/:id', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const employee = await db.employees.findUnique({ where: { id } });
+    const employee = await db.employees.findUnique({ where: { id: id as string } });
 
     if (!employee) {
       return res.status(404).json({ error: 'Employee not found' });
     }
 
-    await db.employees.delete({ where: { id } });
+    await db.employees.delete({ where: { id: id as string } });
 
     // 4. ArmorIQ Secure Audit Logging
     await ArmorIQ.logAudit(
