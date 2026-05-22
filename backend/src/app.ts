@@ -1,6 +1,9 @@
+import dotenv from 'dotenv';
+// Load environment variables early
+dotenv.config();
+
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 
 // Import routes
 import authRoutes from './routes/auth';
@@ -8,9 +11,6 @@ import employeeRoutes from './routes/employees';
 import securityRoutes from './routes/security';
 import reportRoutes from './routes/reports';
 import aiRoutes from './routes/ai';
-
-// Load environment variables
-dotenv.config();
 
 const app = express();
 
