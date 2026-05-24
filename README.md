@@ -18,7 +18,7 @@ Here is our live deployed application on Vercel:
 
 ---
 
-## 💎 Key Achievements
+## 💎 Key Achievements...............
 
 ### 1. Database Architecture & Models
 - Defined stable Prisma schema in `database/schema.prisma` covering:
