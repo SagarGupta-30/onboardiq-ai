@@ -21,7 +21,7 @@ Here is our live deployed application on Vercel:-----
 
 ## 💎 Key Achievements...............
 
-### 1. Database Architecture & Models
+### 1. Database Architecture & Models...
 - Defined stable Prisma schema in `database/schema.prisma` covering:
   - `User`: Admin/HR accounts with secure role-based access.
   - `Employee`: Staff details with live risk and compliance score parameters.
