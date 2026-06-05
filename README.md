@@ -6,7 +6,7 @@ OnboardIQ AI is a state-of-the-art full-stack employee onboarding and continuous
 
 ---
 
-## << Live Production Screenshot,,,,>>>>>>>
+## << Live Production Screenshot ....>>>>>
 
 
 Here is our live deployed application on Vercel:-----
