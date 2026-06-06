@@ -9,7 +9,7 @@ OnboardIQ AI is a state-of-the-art full-stack employee onboarding and continuous
 ## << Live Production Screenshot ....>>>>>
 
 
-Here is our live deployed application on Vercel:-----
+Here is our live deployed application on Vercel:---------------------
 
 ![OnboardIQ Hero & Space Grid](frontend/public/landing_page_top.png)
 *Figure 1: Premium landing page featuring deep glowing mesh backdrops, floating partner badges, and dual-glow call-to-actions.*
