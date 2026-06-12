@@ -2,7 +2,7 @@
 
 ....... **Live Application Link**: [https://onboardiq-ai-x3th.vercel.app](https://onboardiq-ai-x3th.vercel.app)
 
-OnboardIQ AI is a state-of-the-art full-stack employee onboarding and continuous security compliance SaaS application. Fully equipped with modern analytics, AI-powered compliance assistance, secure drag-and-drop file upload logs, and the **ArmorIQ Enterprise Security SDK** gateway.
+..............OnboardIQ AI is a state-of-the-art full-stack employee onboarding and continuous security compliance SaaS application. Fully equipped with modern analytics, AI-powered compliance assistance, secure drag-and-drop file upload logs, and the **ArmorIQ Enterprise Security SDK** gateway.
 
 ---
 
